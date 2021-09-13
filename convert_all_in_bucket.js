@@ -3,6 +3,7 @@
 const path = require("path");
 const AWS = require("aws-sdk");
 const Sharp = require("sharp");
+const WEBP_ROOT_FOLDER = "webp/";
 
 const S3 = new AWS.S3({
   signatureVersion: "v4",
@@ -31,7 +32,7 @@ exports.handler = async (event, context, callback) => {
 
   // including all options that can be passed to listObjectsV2 in case needed in future
   const opts = {
-    Bucket: s3Bucket /* required */ /* TODO: make dynamic by pulling from Event*/,
+    Bucket: s3Bucket /* required */,
     // ContinuationToken: 'STRING_VALUE',
     // Delimiter: 'STRING_VALUE',
     // EncodingType: url,
@@ -44,8 +45,8 @@ exports.handler = async (event, context, callback) => {
 
   // using for of await loop to iterate over objects in S3 bucket
   for await (const data of listAllKeys(opts)) {
-    console.log(data.Contents);
-    console.info("data.Contents: " + JSON.stringify(data.Contents));
+    // console.log(data.Contents);
+    // console.info("data.Contents: " + JSON.stringify(data.Contents));
 
     // better to use a full-on for loop b/c of the try/catch and continue
     for (var i = 0, len = data.Contents.length; i < len; i++) {
@@ -67,17 +68,19 @@ exports.handler = async (event, context, callback) => {
       // early return if it's not .png, .jpg, or .jpeg or if it's a .webp file
       if (!IMG_EXTS.has(ext) || ext === WEBP_EXT) continue;
 
-      // console.info("after early return");
+      // all webp images will be in a root folder matching the dir structure of rest of the images, only one level down
+      // E.g. a .jpg at /static/example.jpg will get an analog webp at /webp/static/example.jpg
+      const newWebpObj = WEBP_ROOT_FOLDER + filenameSansExt + WEBP_EXT;
 
       const paramsForWebPVersion = {
         Bucket: opts.Bucket,
-        Key: filenameSansExt + WEBP_EXT, //if any sub folder-> path/of/the/folder.ext
+        Key: newWebpObj, //if any sub folder-> path/of/the/folder.ext
       };
 
       // Check if a .webp version already exists and if so, continue to next iteration. Otherwise, create WebP
       try {
         await S3.headObject(paramsForWebPVersion).promise();
-        console.log("WebP File Found in S3");
+        //console.log("WebP File Found in S3");
         continue;
       } catch (err) {
         // TODO remove
@@ -100,7 +103,7 @@ exports.handler = async (event, context, callback) => {
           Bucket: opts.Bucket,
           ContentType: "image/webp",
           CacheControl: "max-age=31536000",
-          Key: filenameSansExt + WEBP_EXT,
+          Key: newWebpObj,
           StorageClass: "STANDARD",
         }).promise();
 

@@ -14,7 +14,7 @@ This repo contains two lambda functions which do the following (filename - descr
 
 - Choose Node.js 14.x or higher
 - Add a custom role (outside the scope of this repo but should probably have FullAccess to S3 bucket)
-- Choose 512 MB RAM (or more) so the lambda function executes in 5 seconds or less
+- Choose 512 MB RAM (or more) so the lambda function executes in 5 seconds or less and set timeout to 15 mins or max.
 - Upload the zip file of this repo to the lambda Code area (see `Appendex 1 - tips for Lambda function zip file creation`)
 
 3. Depending on which Function you are using from `Lambda Functions Included in Repo` above you will do the following:
@@ -60,6 +60,6 @@ zip -r ../lambda-function.zip .
   "resources": [
     "arn:aws:events:us-east-1:123456789012:rule/ExampleRule"
   ],
-  "detail": {"bucket": "test-bucket-zxcvb"}
+  "detail": {"bucket": "morphmarket-media-test"}
 }
 ```
