@@ -2,10 +2,12 @@
 
 ## Lambda Functions Included in Repo
 
-This repo contains two lambda functions which do the following (filename - description).
+This repo contains four lambda functions which do the following (filename - description).
 
-1. `index.js` - Generate WebP image from jpg, png, or jpeg using a Lambda trigger when image is uploaded to S3 bucket
-2. `convert_all_in_bucket.js` - Generate all WebP images for an S3 bucket for jpg, png, or jpeg by iterating over the bucket contents and only generating those WebP images that haven't already been generated from their jpg, png, or jpeg counterpart. We can use a CloudWatch Cron job or manually kickoff the process using the `Test` functionality in the lamdba function AWS console.
+1. `1_webp-func-cloudfront-origin-response.js` - Generate WebP on the fly using CloudFront Lambda Edge from an existing (jpg, png, or jpeg) when a request for the .webp version happens and the image does not exist yet.
+2. `2_generate-webp-s3-trigger.js` - Generate WebP image from jpg, png, or jpeg using a Lambda trigger when image is uploaded to S3 bucket
+3. `3_generate-webp-all-bucket-images.js` - Generate all WebP images for an S3 bucket for jpg, png, or jpeg by iterating over the bucket contents and only generating those WebP images that haven't already been generated from their jpg, png, or jpeg counterpart. We can use a CloudWatch Cron job or manually kickoff the process using the `Test` functionality in the lamdba function AWS console.
+4. `4_delete-bucket-webp-images.js` - Delete all the WebP images in a bucket. This is a helper lambda for development of the above 3 or just to reset the bucket.
 
 ## Usage:
 

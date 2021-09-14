@@ -2,15 +2,11 @@
 const path = require("path");
 const AWS = require("aws-sdk");
 const Sharp = require("sharp");
-const WEBP_ROOT_FOLDER = "webp/";
-
+const { OPTIONS } = require("./common/common");
+const { WEBP_ROOT_FOLDER, QUALITY, IMG_EXTENSIONS, WEBP_EXT, PREFIXES_TO_IGNORE } = OPTIONS;
 const S3 = new AWS.S3({
   signatureVersion: "v4",
 });
-
-const QUALITY = 75;
-const IMG_EXTS = new Set([".jpg", ".jpeg", ".png"]);
-const WEBP_EXT = ".webp";
 
 const fileExtRegex = /^([^\\]*)\.(\w+)$/;
 
@@ -25,7 +21,8 @@ exports.handler = async (event, context, callback) => {
     const objectNameSansExt = objectSplit[1];
     const ext = "." + objectSplit[2];
 
-    if (!IMG_EXTS.has(ext) || ext === WEBP_EXT) return;
+    // early return if it's not .png, .jpg, or .jpeg or if it's a .webp file, or in a "folder" we don't care about (i.e. prefixed with a path we want to ignore)
+    if (!IMG_EXTENSIONS.has(ext) || ext === WEBP_EXT || PREFIXES_TO_IGNORE.test(key)) continue;
 
     try {
       const bucketResource = await S3.getObject({
@@ -49,7 +46,7 @@ exports.handler = async (event, context, callback) => {
         StorageClass: "STANDARD",
       }).promise();
 
-      console.log("WebP image created: " + newWebpObj);
+      console.info("WebP image created: " + newWebpObj);
     } catch (error) {
       console.error(error);
       return { statusCode: 500, body: JSON.stringify({ message: error.message }) };

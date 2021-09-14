@@ -3,7 +3,6 @@
 const path = require("path");
 const AWS = require("aws-sdk");
 const Sharp = require("sharp");
-const WEBP_ROOT_FOLDER = "webp/";
 
 const S3 = new AWS.S3({
   signatureVersion: "v4",
@@ -22,6 +21,7 @@ const whitespaceRegex = /\s/;
 exports.handler = async (event, context, callback) => {
   console.info("event: " + JSON.stringify(event));
   let s3Bucket;
+  let imgsDeleted = 0;
   // "detail" is a property passed from CloudWatch which we'll use for a Cron job and "bucket" prop and value we pass from the CloudWatch event
   try {
     s3Bucket = event["detail"]["bucket"];
@@ -45,9 +45,6 @@ exports.handler = async (event, context, callback) => {
 
   // using for of await loop to iterate over objects in S3 bucket
   for await (const data of listAllKeys(opts)) {
-    // console.log(data.Contents);
-    // console.info("data.Contents: " + JSON.stringify(data.Contents));
-
     // better to use a full-on for loop b/c of the try/catch and continue
     for (var i = 0, len = data.Contents.length; i < len; i++) {
       const record = data.Contents[i];
@@ -62,61 +59,34 @@ exports.handler = async (event, context, callback) => {
 
       const filenameSansExt = keySplit[1];
       const ext = "." + keySplit[2];
-      // console.info("objectNameSansExt: " + objectNameSansExt);
-      // console.info("ext: " + ext);
 
-      // early return if it's not .png, .jpg, or .jpeg or if it's a .webp file
-      if (!IMG_EXTS.has(ext) || ext === WEBP_EXT) continue;
+      // early return if it's not a .webp file
+      if (ext.toLowerCase() !== WEBP_EXT) continue;
 
-      // all webp images will be in a root folder matching the dir structure of rest of the images, only one level down
-      // E.g. a .jpg at /static/example.jpg will get an analog webp at /webp/static/example.jpg
-      const newWebpObj = WEBP_ROOT_FOLDER + filenameSansExt + WEBP_EXT;
+      // if needed to check whether file exists or not, check this S.O. https://stackoverflow.com/a/53530749
+      // but we don't need to here b/c we listed objects
 
-      const paramsForWebPVersion = {
-        Bucket: opts.Bucket,
-        Key: newWebpObj, //if any sub folder-> path/of/the/folder.ext
-      };
-
-      // Check if a .webp version already exists and if so, continue to next iteration. Otherwise, create WebP
       try {
-        await S3.headObject(paramsForWebPVersion).promise();
-        //console.log("WebP File Found in S3");
-        continue;
+        const params = {
+          Bucket: s3Bucket,
+          Key: key, //if any sub folder-> path/of/the/folder.ext
+        };
+        await S3.deleteObject(params).promise();
+        // console.log("file deleted Successfully");
+        imgsDeleted += 1;
+        if (imgsDeleted % 500 === 0) {
+          console.info("WebPs deleted so far: " + imgsDeleted);
+        }
       } catch (err) {
-        // TODO remove
-        console.log("WebP File not Found so continue to create WebP || ERROR : " + err);
-      }
-
-      try {
-        // check if we already have a .webp version of this image
-
-        const bucketResource = await S3.getObject({
-          Bucket: opts.Bucket,
-          Key: key,
-        }).promise();
-        const sharpImageBuffer = await Sharp(bucketResource.Body)
-          .webp({ quality: +QUALITY })
-          .toBuffer();
-
-        await S3.putObject({
-          Body: sharpImageBuffer,
-          Bucket: opts.Bucket,
-          ContentType: "image/webp",
-          CacheControl: "max-age=31536000",
-          Key: newWebpObj,
-          StorageClass: "STANDARD",
-        }).promise();
-
-        console.log("WebP created for: " + filenameSansExt + WEBP_EXT);
-      } catch (error) {
-        console.error(error);
-        // return { statusCode: 500, body: JSON.stringify({ message: error.message }) };
-        continue;
+        console.error("ERROR in file Deleting:");
+        console.error(err);
       }
     }
   }
 
-  console.info("Finished generating webp images...");
+  console.info("Finished deleting webp images...");
+  console.info("Total webp images deleted: " + imgsDeleted);
+
   return { statusCode: 200 };
 };
 
